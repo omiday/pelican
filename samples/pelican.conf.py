@@ -3,6 +3,7 @@ from __future__ import unicode_literals
 
 AUTHOR = 'Alexis Métaireau'
 SITENAME = "Alexis' log"
+SITESUBTITLE = 'A personal blog.'
 SITEURL = 'http://blog.notmyidea.org'
 TIMEZONE = "Europe/Paris"
 
@@ -17,7 +18,7 @@ DEFAULT_PAGINATION = 4
 DEFAULT_DATE = (2012, 3, 2, 14, 1, 1)
 
 FEED_ALL_RSS = 'feeds/all.rss.xml'
-CATEGORY_FEED_RSS = 'feeds/%s.rss.xml'
+CATEGORY_FEED_RSS = 'feeds/{slug}.rss.xml'
 
 LINKS = (('Biologeek', 'http://biologeek.org'),
          ('Filyb', "http://filyb.info/"),

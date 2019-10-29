@@ -1,5 +1,6 @@
 # -*- coding: utf-8 -*-
 from __future__ import unicode_literals
+
 import os
 import sys
 
@@ -17,11 +18,11 @@ extensions = ['sphinx.ext.autodoc',
 source_suffix = '.rst'
 master_doc = 'index'
 project = 'Pelican'
-copyright = '2015, Alexis Metaireau and contributors'
+copyright = '2010 – present, Alexis Metaireau and contributors'
 exclude_patterns = ['_build']
 release = __version__
 version = '.'.join(release.split('.')[:1])
-last_stable = '3.7.1'
+last_stable = __version__
 rst_prolog = '''
 .. |last_stable| replace:: :pelican-doc:`{0}`
 '''.format(last_stable)
@@ -30,7 +31,7 @@ rst_prolog = '''
 pygments_style = 'sphinx'
 
 extlinks = {
-    'pelican-doc':  ('http://docs.getpelican.com/%s/', '')
+    'pelican-doc':  ('https://docs.getpelican.com/%s/', '')
 }
 
 # -- Options for HTML output --------------------------------------------------

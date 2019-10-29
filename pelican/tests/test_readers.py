@@ -67,7 +67,7 @@ class TestAssertDictHasSubset(ReaderTest):
         six.assertRaisesRegex(
             self,
             AssertionError,
-            'Expected.*key-c.*to have value.*val-c.*but was not in Dict',
+            r'Expected.*key-c.*to have value.*val-c.*but was not in Dict',
             self.assertDictHasSubset,
             self.dictionary,
             {'key-c': 'val-c'})
@@ -76,7 +76,7 @@ class TestAssertDictHasSubset(ReaderTest):
         six.assertRaisesRegex(
             self,
             AssertionError,
-            'Expected .*key-a.* to have value .*val-b.* but was .*val-a.*',
+            r'Expected .*key-a.* to have value .*val-b.* but was .*val-a.*',
             self.assertDictHasSubset,
             self.dictionary,
             {'key-a': 'val-b'})
@@ -139,7 +139,7 @@ class RstReaderTest(ReaderTest):
 
         page = self.read_file(
             path='2012-11-29_rst_w_filename_meta#foo-bar.rst',
-            FILENAME_METADATA='(?P<date>\d{4}-\d{2}-\d{2}).*')
+            FILENAME_METADATA=r'(?P<date>\d{4}-\d{2}-\d{2}).*')
         expected = {
             'category': 'yeah',
             'author': 'Alexis Métaireau',
@@ -152,9 +152,9 @@ class RstReaderTest(ReaderTest):
         page = self.read_file(
             path='2012-11-29_rst_w_filename_meta#foo-bar.rst',
             FILENAME_METADATA=(
-                '(?P<date>\d{4}-\d{2}-\d{2})'
-                '_(?P<Slug>.*)'
-                '#(?P<MyMeta>.*)-(?P<author>.*)'))
+                r'(?P<date>\d{4}-\d{2}-\d{2})'
+                r'_(?P<Slug>.*)'
+                r'#(?P<MyMeta>.*)-(?P<author>.*)'))
         expected = {
             'category': 'yeah',
             'author': 'Alexis Métaireau',
@@ -165,6 +165,25 @@ class RstReaderTest(ReaderTest):
             'reader': 'rst',
         }
         self.assertDictHasSubset(page.metadata, expected)
+
+    def test_article_with_optional_filename_metadata(self):
+        page = self.read_file(
+            path='2012-11-29_rst_w_filename_meta#foo-bar.rst',
+            FILENAME_METADATA=r'(?P<date>\d{4}-\d{2}-\d{2})?')
+        expected = {
+            'date': SafeDatetime(2012, 11, 29),
+            'reader': 'rst',
+        }
+        self.assertDictHasSubset(page.metadata, expected)
+
+        page = self.read_file(
+            path='article.rst',
+            FILENAME_METADATA=r'(?P<date>\d{4}-\d{2}-\d{2})?')
+        expected = {
+            'reader': 'rst',
+        }
+        self.assertDictHasSubset(page.metadata, expected)
+        self.assertNotIn('date', page.metadata, 'Date should not be set.')
 
     def test_article_metadata_key_lowercase(self):
         # Keys of metadata should be lowercase.
@@ -181,9 +200,9 @@ class RstReaderTest(ReaderTest):
         page_metadata = self.read_file(
             path=input_with_metadata,
             FILENAME_METADATA=(
-                '(?P<date>\d{4}-\d{2}-\d{2})'
-                '_(?P<Slug>.*)'
-                '#(?P<MyMeta>.*)-(?P<author>.*)'
+                r'(?P<date>\d{4}-\d{2}-\d{2})'
+                r'_(?P<Slug>.*)'
+                r'#(?P<MyMeta>.*)-(?P<author>.*)'
             ),
             EXTRA_PATH_METADATA={
                 input_with_metadata: {
@@ -231,9 +250,9 @@ class RstReaderTest(ReaderTest):
         page = self.read_file(
             path=input_file_path,
             FILENAME_METADATA=(
-                '(?P<date>\d{4}-\d{2}-\d{2})'
-                '_(?P<Slug>.*)'
-                '#(?P<MyMeta>.*)-(?P<orginalauthor>.*)'
+                r'(?P<date>\d{4}-\d{2}-\d{2})'
+                r'_(?P<Slug>.*)'
+                r'#(?P<MyMeta>.*)-(?P<orginalauthor>.*)'
             ),
             EXTRA_PATH_METADATA={
                 input_file_path: {
@@ -253,6 +272,38 @@ class RstReaderTest(ReaderTest):
             'key-1b': 'value-1b'
         }
         self.assertDictHasSubset(page.metadata, expected)
+
+    def test_article_extra_path_metadata_recurse(self):
+        parent = "TestCategory"
+        notparent = "TestCategory/article"
+        path = "TestCategory/article_without_category.rst"
+
+        epm = {
+            parent: {'epmr_inherit': parent,
+                     'epmr_override': parent, },
+            notparent: {'epmr_bogus': notparent},
+            path:   {'epmr_override': path, },
+            }
+        expected_metadata = {
+            'epmr_inherit': parent,
+            'epmr_override': path,
+            }
+
+        page = self.read_file(path=path, EXTRA_PATH_METADATA=epm)
+        self.assertDictHasSubset(page.metadata, expected_metadata)
+
+        # Make sure vars aren't getting "inherited" by mistake...
+        path = "article.rst"
+        page = self.read_file(path=path, EXTRA_PATH_METADATA=epm)
+        for k in expected_metadata.keys():
+            self.assertNotIn(k, page.metadata)
+
+        # Same, but for edge cases where one file's name is a prefix of
+        # another.
+        path = "TestCategory/article_without_category.rst"
+        page = self.read_file(path=path, EXTRA_PATH_METADATA=epm)
+        for k in epm[notparent].keys():
+            self.assertNotIn(k, page.metadata)
 
     def test_typogrify(self):
         # if nothing is specified in the settings, the content should be
@@ -391,6 +442,12 @@ class RstReaderTest(ReaderTest):
         self.assertEqual(tuple_date.metadata['date'],
                          string_date.metadata['date'])
 
+    def test_parse_error(self):
+        # Verify that it raises an Exception, not nothing and not SystemExit or
+        # some such
+        with six.assertRaisesRegex(self, Exception, "underline too short"):
+            self.read_file(path='../parse_error/parse_error.rst')
+
 
 @unittest.skipUnless(readers.Markdown, "markdown isn't installed")
 class MdReaderTest(ReaderTest):
@@ -423,7 +480,10 @@ class MdReaderTest(ReaderTest):
         self.assertDictHasSubset(metadata, expected)
 
     def test_article_with_footnote(self):
-        reader = readers.MarkdownReader(settings=get_settings())
+        settings = get_settings()
+        ec = settings['MARKDOWN']['extension_configs']
+        ec['markdown.extensions.footnotes'] = {'SEPARATOR': '-'}
+        reader = readers.MarkdownReader(settings)
         content, metadata = reader.read(
             _path('article_with_markdown_and_footnote.md'))
         expected_content = (
@@ -538,7 +598,7 @@ class MdReaderTest(ReaderTest):
 
         page = self.read_file(
             path='2012-11-30_md_w_filename_meta#foo-bar.md',
-            FILENAME_METADATA='(?P<date>\d{4}-\d{2}-\d{2}).*')
+            FILENAME_METADATA=r'(?P<date>\d{4}-\d{2}-\d{2}).*')
         expected = {
             'category': 'yeah',
             'author': 'Alexis Métaireau',
@@ -549,9 +609,9 @@ class MdReaderTest(ReaderTest):
         page = self.read_file(
             path='2012-11-30_md_w_filename_meta#foo-bar.md',
             FILENAME_METADATA=(
-                '(?P<date>\d{4}-\d{2}-\d{2})'
-                '_(?P<Slug>.*)'
-                '#(?P<MyMeta>.*)-(?P<author>.*)'))
+                r'(?P<date>\d{4}-\d{2}-\d{2})'
+                r'_(?P<Slug>.*)'
+                r'#(?P<MyMeta>.*)-(?P<author>.*)'))
         expected = {
             'category': 'yeah',
             'author': 'Alexis Métaireau',
@@ -560,6 +620,25 @@ class MdReaderTest(ReaderTest):
             'mymeta': 'foo',
         }
         self.assertDictHasSubset(page.metadata, expected)
+
+    def test_article_with_optional_filename_metadata(self):
+        page = self.read_file(
+            path='2012-11-30_md_w_filename_meta#foo-bar.md',
+            FILENAME_METADATA=r'(?P<date>\d{4}-\d{2}-\d{2})?')
+        expected = {
+            'date': SafeDatetime(2012, 11, 30),
+            'reader': 'markdown',
+        }
+        self.assertDictHasSubset(page.metadata, expected)
+
+        page = self.read_file(
+            path='empty.md',
+            FILENAME_METADATA=r'(?P<date>\d{4}-\d{2}-\d{2})?')
+        expected = {
+            'reader': 'markdown',
+        }
+        self.assertDictHasSubset(page.metadata, expected)
+        self.assertNotIn('date', page.metadata, 'Date should not be set.')
 
     def test_duplicate_tags_or_authors_are_removed(self):
         reader = readers.MarkdownReader(settings=get_settings())
@@ -615,6 +694,14 @@ class HTMLReaderTest(ReaderTest):
             'date': SafeDatetime(2010, 12, 2, 10, 14),
             'tags': ['foo', 'bar', 'foobar'],
             'custom_field': 'http://notmyidea.org',
+        }
+
+        self.assertDictHasSubset(page.metadata, expected)
+
+    def test_article_with_multiple_similar_metadata_tags(self):
+        page = self.read_file(path='article_with_multiple_metadata_tags.html')
+        expected = {
+            'custom_field': ['https://getpelican.com', 'https://www.eff.org'],
         }
 
         self.assertDictHasSubset(page.metadata, expected)
@@ -676,4 +763,11 @@ class HTMLReaderTest(ReaderTest):
             'title': 'Article with Nonconformant HTML meta tags',
         }
 
+        self.assertDictHasSubset(page.metadata, expected)
+
+    def test_article_with_inline_svg(self):
+        page = self.read_file(path='article_with_inline_svg.html')
+        expected = {
+            'title': 'Article with an inline SVG',
+        }
         self.assertDictHasSubset(page.metadata, expected)

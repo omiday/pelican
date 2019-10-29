@@ -22,11 +22,10 @@ Alternatively, another method is to import them and add them to the list::
 
 .. note::
 
-   When experimenting with different plugins (especially the ones that
-   deal with metadata and content) caching may interfere and the
-   changes may not be visible. In such cases disable caching with
-   ``LOAD_CONTENT_CACHE = False`` or use the ``--ignore-cache``
-   command-line switch.
+   When experimenting with different plugins (especially the ones that deal
+   with metadata and content) caching may interfere and the changes may not be
+   visible. In such cases disable caching with ``LOAD_CONTENT_CACHE = False``
+   or use the ``--ignore-cache`` command-line switch.
 
 If your plugins are not in an importable path, you can specify a list of paths
 via the ``PLUGIN_PATHS`` setting. As shown in the following example, paths in
@@ -60,7 +59,7 @@ which you map the signals to your plugin logic. Let's take a simple example::
     from pelican import signals
 
     def test(sender):
-        print "%s initialized !!" % sender
+        print("{} initialized !!".format(sender))
 
     def register():
         signals.initialized.connect(test)
@@ -108,6 +107,7 @@ page_generator_preread              page_generator                 invoked befor
                                                                    use if code needs to do something before every page is parsed.
 page_generator_init                 page_generator                 invoked in the PagesGenerator.__init__
 page_generator_finalized            page_generator                 invoked at the end of PagesGenerator.generate_context
+page_generator_write_page           page_generator, content        invoked before writing each page, the page is passed as content
 page_writer_finalized               page_generator, writer         invoked after all pages have been written, but before the page generator
                                                                    is closed.
 static_generator_context            static_generator, metadata
@@ -118,22 +118,24 @@ static_generator_init               static_generator               invoked in th
 static_generator_finalized          static_generator               invoked at the end of StaticGenerator.generate_context
 content_object_init                 content_object                 invoked at the end of Content.__init__
 content_written                     path, context                  invoked each time a content file is written.
+feed_generated                      context, feed                  invoked each time a feed gets generated. Can be used to modify a feed
+                                                                   object before it gets written.
 feed_written                        path, context, feed            invoked each time a feed file is written.
 =================================   ============================   ===========================================================================
 
 .. warning::
 
-   Avoid ``content_object_init`` signal if you intend to read ``summary``
-   or ``content`` properties of the content object. That combination can
-   result in unresolved links when :ref:`ref-linking-to-internal-content`
-   (see `pelican-plugins bug #314`_). Use ``_summary`` and ``_content``
-   properties instead, or, alternatively, run your plugin at a later
-   stage (e.g. ``all_generators_finalized``).
+   Avoid ``content_object_init`` signal if you intend to read ``summary`` or
+   ``content`` properties of the content object. That combination can result in
+   unresolved links when :ref:`ref-linking-to-internal-content` (see
+   `pelican-plugins bug #314`_). Use ``_summary`` and ``_content`` properties
+   instead, or, alternatively, run your plugin at a later stage (e.g.
+   ``all_generators_finalized``).
 
 .. note::
 
-   After Pelican 3.2, signal names were standardized.  Older plugins
-   may need to be updated to use the new names:
+   After Pelican 3.2, signal names were standardized.  Older plugins may need
+   to be updated to use the new names:
 
    ==========================  ===========================
    Old name                    New name
@@ -159,9 +161,9 @@ How to create a new reader
 --------------------------
 
 One thing you might want is to add support for your very own input format.
-While it might make sense to add this feature in Pelican core, we
-wisely chose to avoid this situation and instead have the different readers
-defined via plugins.
+While it might make sense to add this feature in Pelican core, we wisely chose
+to avoid this situation and instead have the different readers defined via
+plugins.
 
 The rationale behind this choice is mainly that plugins are really easy to
 write and don't slow down Pelican itself when they're not active.
@@ -213,6 +215,7 @@ Adding a new generator is also really easy. You might want to have a look at
         # define a new generator here if you need to
         return MyGenerator
 
-    signals.get_generators.connect(get_generators)
+    def register():
+        signals.get_generators.connect(get_generators)
 
 .. _pelican-plugins bug #314: https://github.com/getpelican/pelican-plugins/issues/314
